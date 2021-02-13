@@ -1,0 +1,27 @@
+.program cvideo
+
+loop:                   ; This loop needs to last 52us
+    out X, 8            ; Get 8 bits from OSR to X
+    mov pins, X         ; Move X to pins
+    jmp X-- loop        ; Loop while X != 0
+    irq set 0           ; Set the IRQ to reset the buffer
+    jmp loop            ; Start the next vblank - could use WRAP here I suppose
+
+% c-sdk {
+//
+// Initialise the PIO
+// 
+void cvideo_initialise_pio(PIO pio, uint sm, uint offset, uint pin_base, uint pin_count, double freq) {
+    for(uint i=pin_base; i<pin_base+pin_count; i++) {
+        pio_gpio_init(pio, i);
+    }
+    pio_sm_set_consecutive_pindirs(pio, sm, pin_base, pin_count, true);
+    pio_sm_config c = cvideo_program_get_default_config(offset);
+    sm_config_set_set_pins(&c, pin_base, pin_count);
+    sm_config_set_out_pins(&c, pin_base, pin_count);
+    sm_config_set_out_shift(&c, false, true, 8);
+    sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_TX);
+    pio_sm_init(pio, sm, offset, &c);
+    pio->sm[sm].clkdiv = (uint32_t) (freq * (1 << 16));
+}
+%}
