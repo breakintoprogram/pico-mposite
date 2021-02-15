@@ -1,15 +1,34 @@
+;
+; Title:	        Pico-mposite PIO code
+; Author:	        Dean Belfield
+; Created:	        26/01/2021
+; Last Updated:	    15/02/2021
+;
+; Modinfo:
+; 15/02/2021:       Refactored to use wrap
+;
+
 .program cvideo
 
-loop:                   ; This loop needs to last 52us
-    out X, 8            ; Get 8 bits from OSR to X
-    mov pins, X         ; Move X to pins
+.wrap_target            ; This loop needs to last 64us
+    irq set 0           ; Set the IRQ to reset the buffer and do not wait
+ loop:
+    out X, 8            ; Get 8 bits from DMA via Output Shift Register (OSR) to X
+    mov pins, X         ; Move X to pins as set up in cvideo_initialise_pio
     jmp X-- loop        ; Loop while X != 0
-    irq set 0           ; Set the IRQ to reset the buffer
-    jmp loop            ; Start the next vblank - could use WRAP here I suppose
+.wrap                   ; Loop back to wrap_target
 
 % c-sdk {
 //
 // Initialise the PIO
+// Parameters:
+// - pio: The PIO to attach this to
+// - sm: The state machine number
+// - offset: The instruction memory offset the program is loaded at
+// - pin_base: The number of the first GPIO pin to use in the PIO
+// - pin_count: The number of consecutive GPIO pins to write to
+// - freq: The frequency of the PIO state machine
+//
 // 
 void cvideo_initialise_pio(PIO pio, uint sm, uint offset, uint pin_base, uint pin_count, double freq) {
     for(uint i=pin_base; i<pin_base+pin_count; i++) {
