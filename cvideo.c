@@ -7,6 +7,7 @@
 // Modinfo:
 // 15/02/2021:      Border buffers now have horizontal sync pulse set correctly
 //                  Decreased RAM usage by updating the image buffer scanline on the fly during the horizontal interrupt
+//					Fixed logic error in cvideo_dma_handler; initial memcpy done twice
 // 
 
 #include "memory.h"
@@ -128,10 +129,10 @@ void cvideo_dma_handler(void) {
         //
         case 1 ... 2: 
             dma_channel_set_read_addr(dma_channel, vsync_ll, true);
-            memcpy(&pixel_buffer[bline & 1][pixel_start], &bitmap[bline], width);
             break;
         case 3:
             dma_channel_set_read_addr(dma_channel, vsync_ls, true);
+            memcpy(&pixel_buffer[bline & 1][pixel_start], &bitmap[bline], width);
             break;
         case 4 ... 5:
         case 310 ... 312:
