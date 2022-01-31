@@ -1,13 +1,16 @@
 //
 // Title:	        Pico-mposite Video Output
+// Description:		A hacked-together composite video output for the Raspberry Pi Pico
 // Author:	        Dean Belfield
 // Created:	        26/01/2021
-// Last Updated:	15/02/2021
+// Last Updated:	31/01/2022
 //
 // Modinfo:
 // 15/02/2021:      Border buffers now have horizontal sync pulse set correctly
 //                  Decreased RAM usage by updating the image buffer scanline on the fly during the horizontal interrupt
 //					Fixed logic error in cvideo_dma_handler; initial memcpy done twice
+// 31/01/2022:      Refactored to use less memory
+//					Split the video generation into two state machines; sync and data
 // 
 
 #include "memory.h"
@@ -19,139 +22,188 @@
 #include "hardware/irq.h"
 
 #include "cvideo.h"
-#include "cvideo.pio.h"     // The assembled PIO code
+#include "cvideo_sync.pio.h"    // The assembled PIO code
+#include "cvideo_data.pio.h"    
 
-#define state_machine 0     // The PIO state machine to use
-#define width 256           // Bitmap width in pixels
-#define height 192          // Bitmap height in pixels
-#define hsync_bp1 24        // Length of pulse at 0.0v
-#define hsync_bp2 48        // Length of pulse at 0.3v
-#define hdots 382           // Data for hsync including back porch
-#define piofreq 7.0f        // Clock frequence of state machine
-#define border_colour 11    // The border colour
+#define width 256               // Bitmap width in pixels
+#define height 192              // Bitmap height in pixels
+#define piofreq_0 5.25f         // Clock frequence of state machine for PIO handling sync
+#define piofreq_1  7.0f         // Clock frequency of state machine for PIO handling pixel data
 
-#define pixel_start hsync_bp1 + hsync_bp2 + 18  // Where the pixel data starts in pixel_buffer
+#define sm_sync 0               // State machine number in the PIO for the sync data
+#define sm_data 1               // State machine number in the PIO for the pixel data      
 
-uint dma_channel;           // DMA channel for transferring hsync data to PIO
-uint vline;                 // Current video line being processed
-uint bline;                 // Line in the bitmap to fetch
+PIO pio_0;                      // The PIO that this uses
 
-#include "bitmap.h"         // The demo bitmap
+uint dma_channel_0;             // DMA channel for transferring sync data to PIO
+uint dma_channel_1;             // DMA channel for transferring pixel data data to PIO
+uint vline;                     // Current PAL(ish) video line being processed
+uint bline;                     // Line in the bitmap to fetch
 
-unsigned char vsync_ll[hdots+1];					// buffer for a vsync line with a long/long pulse
-unsigned char vsync_ls[hdots+1];					// buffer for a vsync line with a long/short pulse
-unsigned char vsync_ss[hdots+1];					// Buffer for a vsync line with a short/short pulse
-unsigned char border[hdots+1];						// Buffer for a vsync line for the top and bottom borders
-unsigned char pixel_buffer[2][hdots+1];	        	// Double-buffer for the pixel data scanlines
+#include "bitmap.h"             // The demo bitmap (monochrome)
 
-int main() {
-    PIO pio = pio0;
-    uint offset = pio_add_program(pio, &cvideo_program);	// Load up the PIO program
+/*
+ * The sync tables consist of 32 entries, each one corresponding to a 2us slice of the 64us
+ * horizontal sync. The value 0x00 is reserved as a control byte for the horizontal sync;
+ * cvideo_sync will not write to the GPIO for that block of 0x00's.
+ */
 
-    dma_channel = dma_claim_unused_channel(true);			// Claim a DMA channel for the hsync transfer
-    vline = 1;												// Initialise the video scan line counter to 1
-    bline = 0;												// And the index into the bitmap pixel buffer to 0
+// Horizontal sync with gap for pixel data
+//
+unsigned char hsync[32] = {
+    0x01, 0x0d, 0x0d, 0x10, 0x10, 0x10, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x10, 0x10, 0x10,
+};
 
-    write_vsync_l(&vsync_ll[0],        hdots>>1);			// Pre-build a long/long vscan line...
-    write_vsync_l(&vsync_ll[hdots>>1], hdots>>1);
-    write_vsync_l(&vsync_ls[0],        hdots>>1);			// A long/short vscan line...
-    write_vsync_s(&vsync_ls[hdots>>1], hdots>>1);
-    write_vsync_s(&vsync_ss[0],        hdots>>1);			// A short/short vscan line
-    write_vsync_s(&vsync_ss[hdots>>1], hdots>>1);
+// Horizontal sync for top and bottom borders
+//
+unsigned char border[32] = {}
+    0x01, 0x0d, 0x0d, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 
+    0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x13, 
+};
 
-    // This bit pre-builds the border scanline
+// Vertical sync (long/long)
+//
+unsigned char vsync_ll[32] = {
+    0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x0d,
+    0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x0d,
+};
+
+// Vertical sync (short/short)
+//
+unsigned char vsync_ss[32] = {
+    0x01, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d,
+    0x01, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d,
+};
+
+// Vertical sync (long/short)
+//
+unsigned char vsync_ls[32] = {
+    0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x0d,
+    0x01, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d,
+};
+
+/*
+ * The main routine sets up the whole shebang
+ */
+int main() { 
+    pio_0 = pio0;	// Assign the PIO
+
+    // Load up the PIO programs
     //
-    memset(&border[0], border_colour, hdots);				// Fill the border with the border colour
-    memset(&border[0], 1, hsync_bp1);				        // Add the hsync pulse
-    memset(&border[hsync_bp1], 9, hsync_bp2);
+    uint offset_0 = pio_add_program(pio_0, &cvideo_sync_program);
+    uint offset_1 = pio_add_program(pio_0, &cvideo_data_program);
 
-	// This bit pre-builds the pixel buffer scanlines by adding the hsync pulse and left and right horizontal borders 
-	//
-    for(int i = 0; i < 2; i++) {							// Loop through the pixel buffers
-        memset(&pixel_buffer[i][0], border_colour, hdots);	// First fill the buffer with the border colour
-        memset(&pixel_buffer[i][0], 1, hsync_bp1);			// Add the hsync pulse
-        memset(&pixel_buffer[i][hsync_bp1], 9, hsync_bp2);
-        memset(&pixel_buffer[i][pixel_start], 31, width);
-    }
 
-	// Initialise the PIO
+    dma_channel_0 = dma_claim_unused_channel(true);	// Claim a DMA channel for the sync
+    dma_channel_1 = dma_claim_unused_channel(true);	// And one for the pixel data
+
+    vline = 1;	// Initialise the video scan line counter to 1
+    bline = 0;	// And the index into the bitmap pixel buffer to 0
+
+	// Initialise the first PIO (video sync)
 	//
-    pio_sm_set_enabled(pio, state_machine, false);                      // Disable the PIO state machine
-    pio_sm_clear_fifos(pio, state_machine);	                            // Clear the PIO FIFO buffers
-    cvideo_initialise_pio(pio, state_machine, offset, 0, 5, piofreq);   // Initialise the PIO (function in cvideo.pio)
-    cvideo_configure_pio_dma(pio, state_machine, dma_channel, hdots+1); // Hook up the DMA channel to the state machine
-    pio_sm_set_enabled(pio, state_machine, true);                       // Enable the PIO state machine
+    pio_sm_set_enabled(pio_0, sm_sync, false);	// Disable the PIO state machine
+    pio_sm_clear_fifos(pio_0, sm_sync);			// Clear the PIO FIFO buffers
+    cvideo_sync_initialise_pio(					// Initialise the PIO (function in cvideo.pio)
+		pio_0,									// The PIO to attach this state machine to
+		sm_sync,								// The state machine number
+		offset_0,								// And offset
+		0,										// Start pin in the GPIO
+		5,										// Number of pins
+		piofreq_0								// State machine clock frequency
+	);	
+    cvideo_configure_pio_dma(					// Configure the DMA
+        pio_0,									// The PIO to attach this DMA to
+        sm_sync,								// The state machine number
+        dma_channel_0,							// The DMA channel
+        32,										// Number of bytes to transfer
+        cvideo_dma_handler						// The DMA handler
+    );
+    pio_sm_set_enabled(pio_0, sm_sync, true);	// Enable the PIO state machine
+
+	// Initialise the second PIO (pixel data)
+	//
+    pio_sm_set_enabled(pio_0, sm_data, false);	// As above...
+    pio_sm_clear_fifos(pio_0, sm_data);
+    cvideo_data_initialise_pio(					// .. but a different state machine
+		pio_0,
+		sm_data,
+		offset_1,
+		0,
+		5,
+		piofreq_1
+	);
+    cvideo_configure_pio_dma(
+        pio_0,	
+        sm_data,
+        dma_channel_1,							// On DMA channel 1
+        256,									// This time there is 256 bytes of data (pixels)
+        NULL									// But there is no DMA interrupt for the pixl data
+    ); 
+    pio_sm_set_enabled(pio_0, sm_data, true);	// Enable the PIO state machine
+
+    irq_set_exclusive_handler(					// Set up the PIO IRQ handler
+		PIO0_IRQ_0,								// The IRQ #
+		cvideo_pio_handler						// And handler routine
+	); 
+    irq_set_enabled(PIO0_IRQ_0, true);			// Enable it
+    pio0_hw->inte0 = PIO_IRQ0_INTE_SM0_BITS;	// Just for IRQ 0 (triggered by irq set 0 in PIO)
 
 	// And kick everything off
 	//
-    cvideo_dma_handler();       // Call the DMA handler as a one-off to initialise it
+    cvideo_pio_handler();       // Call the handlers as a one-off to initialise both DMAs
+    cvideo_dma_handler();       
     while (true) {              // And then just loop doing nothing
         tight_loop_contents();
     }
 }
 
-// Write out a short vsync pulse
-// Parameters:
-// - p: Pointer to the buffer to store this sync data
-// - length: The buffer size
+// The PIO interrupt handler
+// This sets up the DMA for cvideo_data with pixel data and is triggered by the irq set 0
+// instruction at the end of the PIO
 //
-void write_vsync_s(unsigned char *p, int length) {
-    int pulse_width = length / 16;
-    for(int i = 0; i < length; i++) {
-        p[i] = i <= pulse_width ? 1 : 13;
-    }
+void cvideo_pio_handler(void) {
+    dma_channel_set_read_addr(dma_channel_1, bitmap[bline++], true);	// Line up the next block of pixels
+    hw_set_bits(&pio0->irq, 1u);										// Reset the IRQ
 }
 
-// Write out a long vsync half-pulse
-// Parameters:
-// - p: Pointer to the buffer to store this sync data
-// - length: The buffer size
-//
-void write_vsync_l(unsigned char *p, int length) {
-    int pulse_width = length - (length / 16) - 1;
-    for(int i = 0; i < length; i++) {
-        p[i] = i >= pulse_width ? 13 : 1;
-    }
-}
-
-// The hblank interrupt handler
-// This is triggered by the instruction irq set 0 in the PIO code (cvideo.pio)
+// The DMA interrupt handler
+// This feeds the state machine cvideo_sync with data for the PAL(ish) video signal
 // 
 void cvideo_dma_handler(void) {
-
+	
     // Switch condition on the vertical scanline number (vline)
     // Each statement does a dma_channel_set_read_addr to point the PIO to the next data to output
     //
     switch(vline) {
-
+		
         // First deal with the vertical sync scanlines
         // Also on scanline 3, preload the first pixel buffer scanline
         //
         case 1 ... 2: 
-            dma_channel_set_read_addr(dma_channel, vsync_ll, true);
+            dma_channel_set_read_addr(dma_channel_0, vsync_ll, true);
             break;
         case 3:
-            dma_channel_set_read_addr(dma_channel, vsync_ls, true);
-            memcpy(&pixel_buffer[bline & 1][pixel_start], &bitmap[bline], width);
+            dma_channel_set_read_addr(dma_channel_0, vsync_ls, true);
             break;
         case 4 ... 5:
         case 310 ... 312:
-            dma_channel_set_read_addr(dma_channel, vsync_ss, true);
+            dma_channel_set_read_addr(dma_channel_0, vsync_ss, true);
             break;
 
         // Then the border scanlines
         //
         case 6 ... 68:
         case 260 ... 309:
-            dma_channel_set_read_addr(dma_channel, border, true);
+            dma_channel_set_read_addr(dma_channel_0, border, true);
             break;
 
         // Now point the dma at the first buffer for the pixel data,
         // and preload the data for the next scanline
         // 
         default:
-            dma_channel_set_read_addr(dma_channel, pixel_buffer[bline++ & 1], true);    // Set the DMA to read from one of the pixel_buffers
-            memcpy(&pixel_buffer[bline & 1][pixel_start], &bitmap[bline], width);       // And memcpy the next scanline into the other pixel buffer
+            dma_channel_set_read_addr(dma_channel_0, hsync, true);
             break;
     }
 
@@ -164,7 +216,7 @@ void cvideo_dma_handler(void) {
 
     // Finally, clear the interrupt request ready for the next horizontal sync interrupt
     //
-    dma_hw->ints0 = 1u << dma_channel;		
+    dma_hw->ints0 = 1u << dma_channel_0;	
 }
 
 // Configure the PIO DMA
@@ -173,8 +225,9 @@ void cvideo_dma_handler(void) {
 // - sm: The state machine number
 // - dma_channel: The DMA channel
 // - buffer_size_words: Number of bytes to transfer
+// - handler: Address of the interrupt handler, or NULL for no interrupts
 //
-void cvideo_configure_pio_dma(PIO pio, uint sm, uint dma_channel, size_t buffer_size_words) {
+void cvideo_configure_pio_dma(PIO pio, uint sm, uint dma_channel, size_t buffer_size_words, irq_handler_t handler) {
     pio_sm_clear_fifos(pio, sm);
     dma_channel_config c = dma_channel_get_default_config(dma_channel);
     channel_config_set_transfer_data_size(&c, DMA_SIZE_8);
@@ -186,7 +239,9 @@ void cvideo_configure_pio_dma(PIO pio, uint sm, uint dma_channel, size_t buffer_
         buffer_size_words,          // Number of transfers
         true                        // Start flag (true = start immediately)
     );
-    dma_channel_set_irq0_enabled(dma_channel, true);
-    irq_set_exclusive_handler(DMA_IRQ_0, cvideo_dma_handler);
-    irq_set_enabled(DMA_IRQ_0, true);
+    if(handler != NULL) {
+        dma_channel_set_irq0_enabled(dma_channel, true);
+        irq_set_exclusive_handler(DMA_IRQ_0, handler);
+        irq_set_enabled(DMA_IRQ_0, true);
+    }
 }
