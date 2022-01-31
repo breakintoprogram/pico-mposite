@@ -1,0 +1,50 @@
+;
+; Title:	        Pico-mposite PIO code 
+; Description:		Generate a burst of pixels to inject into the PAL(ish) video sync scaffold
+; Author:	        Dean Belfield
+; Created:	        31/01/2021
+; Last Updated:	    31/01/2022
+;
+; Modinfo:
+;
+
+.program cvideo_data
+
+.wrap_target				; This loop needs to last 64us
+
+    set Y, 0x10				; The border colour
+    wait 1 irq 4			; Wait for IRQ 4 from cvideo_sync
+
+ loop:
+    out X, 8				; Get 8 bits from DMA via Output Shift Register (OSR) to X
+    mov pins, X				; Move X to pins as set up in cvideo_initialise_pio
+    jmp !OSRE loop 			; Loop unti no more pixel data
+    mov pins, Y				; Force the border colour in
+    irq set 0				; Trigger the PIO interrupt to set up the DMA for the next scanline
+
+.wrap						; Loop back to wrap_target
+
+% c-sdk {
+//
+// Initialise the PIO
+// Parameters:
+// - pio: The PIO to attach this to
+// - sm: The state machine number
+// - offset: The instruction memory offset the program is loaded at
+// - pin_base: The number of the first GPIO pin to use in the PIO
+// - pin_count: The number of consecutive GPIO pins to write to
+// - freq: The frequency of the PIO state machine
+// 
+void cvideo_data_initialise_pio(PIO pio, uint sm, uint offset, uint pin_base, uint pin_count, double freq) {
+    for(uint i=pin_base; i<pin_base+pin_count; i++) {
+        pio_gpio_init(pio, i);
+    }
+    pio_sm_set_consecutive_pindirs(pio, sm, pin_base, pin_count, true);
+    pio_sm_config c = cvideo_data_program_get_default_config(offset);
+    sm_config_set_set_pins(&c, pin_base, pin_count);
+    sm_config_set_out_pins(&c, pin_base, pin_count);
+    sm_config_set_out_shift(&c, false, true, 8);
+    pio_sm_init(pio, sm, offset, &c);
+    pio->sm[sm].clkdiv = (uint32_t) (freq * (1 << 16));
+}
+%}
