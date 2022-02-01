@@ -28,7 +28,7 @@
     nop             [15]	; Just padding to time this out
     jmp !X loop_2   [15]	; Loop until we hit data again
 
- wrap						; Loop back to wrap_target
+.wrap						; Loop back to wrap_target
 
 % c-sdk {
 //
