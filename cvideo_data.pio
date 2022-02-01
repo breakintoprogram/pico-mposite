@@ -3,14 +3,14 @@
 ; Description:		Generate a burst of pixels to inject into the PAL(ish) video sync scaffold
 ; Author:	        Dean Belfield
 ; Created:	        31/01/2021
-; Last Updated:	    31/01/2022
+; Last Updated:	    01/02/2022
 ;
 ; Modinfo:
-;
+; 01/02/2022:		Tweaked comments
 
 .program cvideo_data
 
-.wrap_target				; This loop needs to last 64us
+.wrap_target
 
     set Y, 0x10				; The border colour
     wait 1 irq 4			; Wait for IRQ 4 from cvideo_sync
