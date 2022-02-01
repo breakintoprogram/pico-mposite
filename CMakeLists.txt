@@ -1,15 +1,30 @@
-add_executable(pi-composite)
+#
+# Title:	        Pico-mposite Makefile
+# Description:		Makefile 
+# Author:	        Dean Belfield
+# Created:	        31/01/2021
+# Last Updated:	    01/02/2022
+#
+# Modinfo:
+# 01/02/2022:		Added this header comment, fixed typo in executable filename
 
-pico_generate_pio_header(pi-composite ${CMAKE_CURRENT_LIST_DIR}/cvideo_sync.pio)
-pico_generate_pio_header(pi-composite ${CMAKE_CURRENT_LIST_DIR}/cvideo_data.pio)
+#
+# See the official documentation https://www.raspberrypi.com/documentation/microcontrollers/c_sdk.html
+# for guidance on setting up the Pico C/C++ SDK.
+#
+
+add_executable(pico-mposite)
+
+pico_generate_pio_header(pico-mposite ${CMAKE_CURRENT_LIST_DIR}/cvideo_sync.pio)
+pico_generate_pio_header(pico-mposite ${CMAKE_CURRENT_LIST_DIR}/cvideo_data.pio)
 
 target_sources(
-        pi-composite PRIVATE
+        pico-mposite PRIVATE
         cvideo.c
 )
 
 target_link_libraries(
-        pi-composite PRIVATE
+        pico-mposite PRIVATE
         pico_stdlib
         pico_mem_ops
         hardware_pio
@@ -17,11 +32,11 @@ target_link_libraries(
         hardware_irq
 )
 
-pico_add_extra_outputs(pi-composite)
+pico_add_extra_outputs(pico-mposite)
 
 # add url via pico_set_program_url
 #
-example_auto_set_url(pi-composite)
+example_auto_set_url(pico-mposite)
 
 # generate .hex file and .pio.h file for the RP2040 datasheet (to make sure
 # the datasheet always shows the output of the latest pioasm version)
@@ -61,4 +76,4 @@ add_custom_command(
 )
 
 
-add_dependencies(pi-composite pio_cvideo_sync_datasheet pio_cvideo_data_datasheet)
+add_dependencies(pico-mposite pio_cvideo_sync_datasheet pio_cvideo_data_datasheet)
