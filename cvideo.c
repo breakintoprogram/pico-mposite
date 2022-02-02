@@ -1,9 +1,9 @@
 //
 // Title:	        Pico-mposite Video Output
-// Description:		A hacked-together composite video output for the Raspberry Pi Pico
+// Description:		The composite video stuff
 // Author:	        Dean Belfield
 // Created:	        26/01/2021
-// Last Updated:	31/01/2022
+// Last Updated:	02/02/2022
 //
 // Modinfo:
 // 15/02/2021:      Border buffers now have horizontal sync pulse set correctly
@@ -11,27 +11,25 @@
 //					Fixed logic error in cvideo_dma_handler; initial memcpy done twice
 // 31/01/2022:      Refactored to use less memory
 //					Split the video generation into two state machines; sync and data
+// 01/02/2022:      Added a handful of graphics primitives
+// 02/02/2022:      Split main loop out into main.c
 // 
 
-#include "memory.h"
+#include <stdlib.h>
 
+#include "memory.h"
 #include "pico/stdlib.h"
 
 #include "hardware/pio.h"
 #include "hardware/dma.h"
-#include "hardware/irq.h"
+#include "hardware/irq.h"   
+
+#include "charset.h"            // The character set
 
 #include "cvideo.h"
+#include "graphics.h"
 #include "cvideo_sync.pio.h"    // The assembled PIO code
 #include "cvideo_data.pio.h"    
-
-#define width 256               // Bitmap width in pixels
-#define height 192              // Bitmap height in pixels
-#define piofreq_0 5.25f         // Clock frequence of state machine for PIO handling sync
-#define piofreq_1  7.0f         // Clock frequency of state machine for PIO handling pixel data
-
-#define sm_sync 0               // State machine number in the PIO for the sync data
-#define sm_data 1               // State machine number in the PIO for the pixel data      
 
 PIO pio_0;                      // The PIO that this uses
 
@@ -40,7 +38,7 @@ uint dma_channel_1;             // DMA channel for transferring pixel data data 
 uint vline;                     // Current PAL(ish) video line being processed
 uint bline;                     // Line in the bitmap to fetch
 
-#include "bitmap.h"             // The demo bitmap (monochrome)
+uint vblank_count;              // Vblank counter
 
 /*
  * The sync tables consist of 32 entries, each one corresponding to a 2us slice of the 64us
@@ -86,7 +84,7 @@ unsigned char vsync_ls[32] = {
 /*
  * The main routine sets up the whole shebang
  */
-int main() { 
+int initialise_cvideo() { 
     pio_0 = pio0;	// Assign the PIO
 
     // Load up the PIO programs
@@ -94,12 +92,12 @@ int main() {
     uint offset_0 = pio_add_program(pio_0, &cvideo_sync_program);
     uint offset_1 = pio_add_program(pio_0, &cvideo_data_program);
 
-
     dma_channel_0 = dma_claim_unused_channel(true);	// Claim a DMA channel for the sync
     dma_channel_1 = dma_claim_unused_channel(true);	// And one for the pixel data
 
-    vline = 1;	// Initialise the video scan line counter to 1
-    bline = 0;	// And the index into the bitmap pixel buffer to 0
+    vline = 1;          // Initialise the video scan line counter to 1
+    bline = 0;	        // And the index into the bitmap pixel buffer to 0
+    vblank_count = 0;   // And the vblank counter
 
 	// Initialise the first PIO (video sync)
 	//
@@ -152,10 +150,18 @@ int main() {
 
 	// And kick everything off
 	//
-    cvideo_pio_handler();       // Call the handlers as a one-off to initialise both DMAs
+    cvideo_pio_handler();                       // Call the handlers as a one-off to initialise both DMAs
     cvideo_dma_handler();       
-    while (true) {              // And then just loop doing nothing
-        tight_loop_contents();
+
+    return 0;
+}
+
+// Wait for vblank
+//
+void wait_vblank(void) {
+    uint c = vblank_count;
+    while(c == vblank_count) {
+        sleep_us(64);
     }
 }
 
@@ -181,7 +187,7 @@ void cvideo_dma_handler(void) {
         // First deal with the vertical sync scanlines
         // Also on scanline 3, preload the first pixel buffer scanline
         //
-        case 1 ... 2: 
+        case 1 ... 2:
             dma_channel_set_read_addr(dma_channel_0, vsync_ll, true);
             break;
         case 3:
@@ -195,7 +201,7 @@ void cvideo_dma_handler(void) {
         // Then the border scanlines
         //
         case 6 ... 68:
-        case 260 ... 309:
+        case 261 ... 309:
             dma_channel_set_read_addr(dma_channel_0, border, true);
             break;
 
@@ -212,6 +218,7 @@ void cvideo_dma_handler(void) {
     if(vline++ >= 312) {    // If we've gone past the bottom scanline then
         vline = 1;		    // Reset the scanline counter
         bline = 0;		    // And the pixel buffer row index counter
+        vblank_count++;
     }
 
     // Finally, clear the interrupt request ready for the next horizontal sync interrupt

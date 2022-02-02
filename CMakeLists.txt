@@ -6,7 +6,7 @@
 # Last Updated:	    01/02/2022
 #
 # Modinfo:
-# 01/02/2022:		Added this header comment, fixed typo in executable filename
+# 01/02/2022:		Added this header comment, fixed typo in executable filename, added extra target sources
 
 #
 # See the official documentation https://www.raspberrypi.com/documentation/microcontrollers/c_sdk.html
@@ -20,7 +20,11 @@ pico_generate_pio_header(pico-mposite ${CMAKE_CURRENT_LIST_DIR}/cvideo_data.pio)
 
 target_sources(
         pico-mposite PRIVATE
+        main.c
         cvideo.c
+        graphics.c
+        charset.c
+        bitmap.c
 )
 
 target_link_libraries(
