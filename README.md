@@ -21,7 +21,7 @@ The graphics primitives include:
 
 - Plot, Line and Circle
 - Print
-- Clear Screen and Vsync
+- Clear Screen, Vsync and Border
 
 ### Why am I doing this?
 The code has evolved from a demo I built last year to demonstrate using the Pico PIO to output a composite video signal. I've decided the project has legs, and have decided to update it with the intention of making a colour version, and adding more support code for any developers that want to use this as a reference for their own projects.
