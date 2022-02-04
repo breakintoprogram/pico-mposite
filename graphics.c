@@ -3,10 +3,10 @@
 // Description:		A hacked-together composite video output for the Raspberry Pi Pico
 // Author:	        Dean Belfield
 // Created:	        01/02/2021
-// Last Updated:	01/02/2022
+// Last Updated:	03/02/2022
 //
 // Modinfo:
-// 
+// 03/02/2022:      Fixed bug in print_char, typos in comments
 
 #include <math.h>
 
@@ -32,9 +32,10 @@ void cls(unsigned char c) {
 // - fc: Foreground colour (0x10 to 0x1f)
 //
 void print_char(int x, int y, int c, unsigned char bc, unsigned char fc) {
-    int char_index = (c - 32) * 8;
+    int char_index;
 
-    if(c >= 0 && c < 128) {
+    if(c >= 32 && c < 128) {
+        char_index = (c - 32) * 8;
         for(int row = 0; row < 8; row++) {
             unsigned char data = charset[char_index + row];
             for(int bit = 0; bit < 8; bit ++) {
@@ -125,7 +126,7 @@ void draw_line(int x1, int y1, int x2, int y2, unsigned char c) {
     }
 }
 
-// Draw a line
+// Draw a circle
 // - x: X Coordinate 
 // - y: Y Coordinate
 // - r: Radius
