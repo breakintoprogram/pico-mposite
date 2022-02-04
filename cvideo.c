@@ -3,7 +3,7 @@
 // Description:		The composite video stuff
 // Author:	        Dean Belfield
 // Created:	        26/01/2021
-// Last Updated:	02/02/2022
+// Last Updated:	04/02/2022
 //
 // Modinfo:
 // 15/02/2021:      Border buffers now have horizontal sync pulse set correctly
@@ -13,6 +13,7 @@
 //					Split the video generation into two state machines; sync and data
 // 01/02/2022:      Added a handful of graphics primitives
 // 02/02/2022:      Split main loop out into main.c
+// 04/02/2022:      Added set_border
 // 
 
 #include <stdlib.h>
@@ -57,7 +58,7 @@ unsigned char hsync[32] = {
 //
 unsigned char border[32] = {
     0x01, 0x0d, 0x0d, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 
-    0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x13, 
+    0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 
 };
 
 // Vertical sync (long/long)
@@ -132,6 +133,9 @@ int initialise_cvideo() {
 		5,
 		piofreq_1
 	);
+   
+    // Initialise the DMA
+    //
     cvideo_configure_pio_dma(
         pio_0,	
         sm_data,
@@ -148,12 +152,29 @@ int initialise_cvideo() {
     irq_set_enabled(PIO0_IRQ_0, true);			// Enable it
     pio0_hw->inte0 = PIO_IRQ0_INTE_SM0_BITS;	// Just for IRQ 0 (triggered by irq set 0 in PIO)
 
+    set_border(0x10);                           // Set the border colour
+    cls(0x10);                                  // Clear the screen
+
 	// And kick everything off
 	//
     cvideo_pio_handler();                       // Call the handlers as a one-off to initialise both DMAs
     cvideo_dma_handler();       
 
     return 0;
+}
+
+// Set the border colour
+//
+void set_border(unsigned char colour) {
+    if(colour < 0x10 || colour > 0x1f) {
+        return;
+    }
+    for(int i = 3; i <32; i++) {
+        if(hsync[i] >= 0x10) {
+            hsync[i] = colour;
+        }
+        border[i] = colour;
+    }
 }
 
 // Wait for vblank

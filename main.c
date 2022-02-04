@@ -3,8 +3,11 @@
 // Description:		A hacked-together composite video output for the Raspberry Pi Pico
 // Author:	        Dean Belfield
 // Created:	        02/02/2021
-// Last Updated:	02/02/2022
+// Last Updated:	04/02/2022
 // 
+// Modinfo:
+// 04/02/2022:      Demos now set the border colour
+//
 
 #include <stdlib.h>
 #include <math.h>
@@ -61,6 +64,8 @@ int main() {
 }
 
 void demo_splash() {
+    set_border(0x10);
+
     memcpy(bitmap, sample_bitmap, height * width);
 
     print_string(60, 8, "Pico-mposite v1.0", 0x10, 0x1f);
@@ -77,6 +82,8 @@ void demo_spinny_cube() {
     double psi = 0;
     double phi = 0;
 
+    set_border(0x1f);
+
     for(int i = 0; i < 1000; i++) {
         wait_vblank();
         cls(0x1f);
@@ -92,6 +99,7 @@ void demo_spinny_cube() {
 //
 void demo_mandlebrot() {
     cls(0x10);
+    set_border(0x10);
     render_mandlebrot();
     print_string(16, 180, "Pico-mposite Mandlebrot Demo", 0x10, 0x1f);
     sleep_ms(10000);

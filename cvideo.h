@@ -2,12 +2,12 @@
 // Title:	        Pico-mposite Video Output
 // Author:	        Dean Belfield
 // Created:	        26/01/2021
-// Last Updated:	02/02/2022
+// Last Updated:	04/02/2022
 //
 // Modinfo:
 // 31/01/2022:      Tweaks to reflect code changes
 // 02/02/2022:      Added initialise_cvideo
-// 
+// 04/02/2022:      Added set_border
 
 #pragma once
 
@@ -25,3 +25,4 @@ void cvideo_pio_handler(void);
 void cvideo_dma_handler(void);
 
 void wait_vblank(void);
+void set_border(unsigned char colour);

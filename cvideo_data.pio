@@ -3,26 +3,27 @@
 ; Description:		Generate a burst of pixels to inject into the PAL(ish) video sync scaffold
 ; Author:	        Dean Belfield
 ; Created:	        31/01/2021
-; Last Updated:	    01/02/2022
+; Last Updated:	    04/02/2022
 ;
 ; Modinfo:
 ; 01/02/2022:		Tweaked comments
+; 04/02/2022:       Border colour reset improved
 
 .program cvideo_data
 
 .wrap_target
 
-    set Y, 0x10				; The border colour
-    wait 1 irq 4			; Wait for IRQ 4 from cvideo_sync
+    wait 1 irq 4            ; Wait for IRQ 4 from cvideo_sync
+    mov Y, pins             ; The GPIO pins are still set to border colour, so store that in Y
 
  loop:
     out X, 8				; Get 8 bits from DMA via Output Shift Register (OSR) to X
     mov pins, X				; Move X to pins as set up in cvideo_initialise_pio
-    jmp !OSRE loop 			; Loop unti no more pixel data
-    mov pins, Y				; Force the border colour in
+    jmp !OSRE loop  		; Loop unti no more pixel data
+    mov pins, Y				; Reset the border colour
     irq set 0				; Trigger the PIO interrupt to set up the DMA for the next scanline
 
-.wrap						; Loop back to wrap_target
+;.wrap						; Loop back to wrap_target
 
 % c-sdk {
 //
@@ -44,6 +45,7 @@ void cvideo_data_initialise_pio(PIO pio, uint sm, uint offset, uint pin_base, ui
     sm_config_set_set_pins(&c, pin_base, pin_count);
     sm_config_set_out_pins(&c, pin_base, pin_count);
     sm_config_set_out_shift(&c, false, true, 8);
+    sm_config_set_in_pins(&c, pin_base);
     pio_sm_init(pio, sm, offset, &c);
     pio->sm[sm].clkdiv = (uint32_t) (freq * (1 << 16));
 }
