@@ -3,28 +3,28 @@
 ; Description:		Generate a PAL(ish) video signal scaffold
 ; Author:	        Dean Belfield
 ; Created:	        26/01/2021
-; Last Updated:	    31/01/2022
+; Last Updated:	    05/02/2022
 ;
 ; Modinfo:
 ; 15/02/2021:       Refactored to use wrap
 ; 31/01/2022:		Modified to use 32 byte sync tables
-;
+; 05/02/2022:       Modified to use 16 bit values in sync tables, tweaked timings
 
 .program cvideo_sync
 
 .wrap_target				; This loop needs to last ~64us
 
  loop_1:
-    out X, 8        [15]	; Get 8 bits from DMA via Output Shift Register (OSR) to X
+    out X, 16       [15]	; Get 16 bits from DMA via Output Shift Register (OSR) to X
     jmp !X skip_1			; If the data byte is 0, then skip to the next loop
     mov pins, X     [14]	; Move data to pins as set up in cvideo_initialise_pio
     jmp loop_1      [15]	; Loop
 
  skip_1:
-    irq set 4       [31]	; Set the IRQ to trigger the state machine cvideo_data
+    irq set 4       [30]	; Set the IRQ to trigger the state machine cvideo_data
 
  loop_2:
-    out X, 8        [15]	; Get 8 bits from DMA
+    out X, 16       [15]	; Get 16 bits from DMA
     nop             [15]	; Just padding to time this out
     jmp !X loop_2   [15]	; Loop until we hit data again
 
