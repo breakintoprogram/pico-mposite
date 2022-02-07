@@ -3,7 +3,7 @@
 // Description:		The composite video stuff
 // Author:	        Dean Belfield
 // Created:	        26/01/2021
-// Last Updated:	04/02/2022
+// Last Updated:	05/02/2022
 //
 // Modinfo:
 // 15/02/2021:      Border buffers now have horizontal sync pulse set correctly
@@ -14,7 +14,7 @@
 // 01/02/2022:      Added a handful of graphics primitives
 // 02/02/2022:      Split main loop out into main.c
 // 04/02/2022:      Added set_border
-// 
+// 05/02/2022:      Added support for colour, fixed bug in video generation
 
 #include <stdlib.h>
 
@@ -30,7 +30,7 @@
 #include "cvideo.h"
 #include "graphics.h"
 #include "cvideo_sync.pio.h"    // The assembled PIO code
-#include "cvideo_data.pio.h"    
+#include "cvideo_data.pio.h"
 
 PIO pio_0;                      // The PIO that this uses
 
@@ -45,41 +45,43 @@ uint vblank_count;              // Vblank counter
  * The sync tables consist of 32 entries, each one corresponding to a 2us slice of the 64us
  * horizontal sync. The value 0x00 is reserved as a control byte for the horizontal sync;
  * cvideo_sync will not write to the GPIO for that block of 0x00's.
+ * 
+ * All sync pulses are active low
  */
 
 // Horizontal sync with gap for pixel data
 //
-unsigned char hsync[32] = {
-    0x01, 0x0d, 0x0d, 0x10, 0x10, 0x10, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x10, 0x10, 0x10,
+unsigned short hsync[32] = {
+    HSLO, HSHI, HSHI, BORD, BORD, BORD, BORD, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, BORD, BORD, BORD, BORD,
 };
 
 // Horizontal sync for top and bottom borders
 //
-unsigned char border[32] = {
-    0x01, 0x0d, 0x0d, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 
-    0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 
+unsigned short border[32] = {
+    HSLO, HSHI, HSHI, BORD, BORD, BORD, BORD, BORD, BORD, BORD, BORD, BORD, BORD, BORD, BORD, BORD, 
+    BORD, BORD, BORD, BORD, BORD, BORD, BORD, BORD, BORD, BORD, BORD, BORD, BORD, BORD, BORD, BORD, 
 };
 
 // Vertical sync (long/long)
 //
-unsigned char vsync_ll[32] = {
-    0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x0d,
-    0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x0d,
+unsigned short vsync_ll[32] = {
+    VSLO, VSLO, VSLO, VSLO, VSLO, VSLO, VSLO, VSLO, VSLO, VSLO, VSLO, VSLO, VSLO, VSLO, VSLO, VSHI, // Long sync pulse
+    VSLO, VSLO, VSLO, VSLO, VSLO, VSLO, VSLO, VSLO, VSLO, VSLO, VSLO, VSLO, VSLO, VSLO, VSLO, VSHI, // Long sync pulse
 };
 
 // Vertical sync (short/short)
 //
-unsigned char vsync_ss[32] = {
-    0x01, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d,
-    0x01, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d,
+unsigned short vsync_ss[32] = {
+    VSLO, VSHI, VSHI, VSHI, VSHI, VSHI, VSHI, VSHI, VSHI, VSHI, VSHI, VSHI, VSHI, VSHI, VSHI, VSHI, // Short sync pulse
+    VSLO, VSHI, VSHI, VSHI, VSHI, VSHI, VSHI, VSHI, VSHI, VSHI, VSHI, VSHI, VSHI, VSHI, VSHI, VSHI, // Short sync pulse
 };
 
 // Vertical sync (long/short)
 //
-unsigned char vsync_ls[32] = {
-    0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x0d,
-    0x01, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d, 0x0d,
+unsigned short vsync_ls[32] = {
+    VSLO, VSLO, VSLO, VSLO, VSLO, VSLO, VSLO, VSLO, VSLO, VSLO, VSLO, VSLO, VSLO, VSLO, VSLO, VSHI, // Long sync pulse
+    VSLO, VSHI, VSHI, VSHI, VSHI, VSHI, VSHI, VSHI, VSHI, VSHI, VSHI, VSHI, VSHI, VSHI, VSHI, VSHI, // Short sync pulse
 };
 
 /*
@@ -108,14 +110,15 @@ int initialise_cvideo() {
 		pio_0,									// The PIO to attach this state machine to
 		sm_sync,								// The state machine number
 		offset_0,								// And offset
-		0,										// Start pin in the GPIO
-		5,										// Number of pins
+		gpio_base,								// Start pin in the GPIO
+		gpio_count,								// Number of pins
 		piofreq_0								// State machine clock frequency
 	);	
     cvideo_configure_pio_dma(					// Configure the DMA
         pio_0,									// The PIO to attach this DMA to
         sm_sync,								// The state machine number
         dma_channel_0,							// The DMA channel
+        DMA_SIZE_16,                            // Size of each transfer
         32,										// Number of bytes to transfer
         cvideo_dma_handler						// The DMA handler
     );
@@ -129,8 +132,8 @@ int initialise_cvideo() {
 		pio_0,
 		sm_data,
 		offset_1,
-		0,
-		5,
+		gpio_base,
+		gpio_count,
 		piofreq_1
 	);
    
@@ -140,7 +143,8 @@ int initialise_cvideo() {
         pio_0,	
         sm_data,
         dma_channel_1,							// On DMA channel 1
-        256,									// This time there is 256 bytes of data (pixels)
+        DMA_SIZE_8,                             // Size of each transfer
+        width,									// The bitmap width
         NULL									// But there is no DMA interrupt for the pixl data
     ); 
     pio_sm_set_enabled(pio_0, sm_data, true);	// Enable the PIO state machine
@@ -152,37 +156,39 @@ int initialise_cvideo() {
     irq_set_enabled(PIO0_IRQ_0, true);			// Enable it
     pio0_hw->inte0 = PIO_IRQ0_INTE_SM0_BITS;	// Just for IRQ 0 (triggered by irq set 0 in PIO)
 
-    set_border(0x10);                           // Set the border colour
-    cls(0x10);                                  // Clear the screen
+    set_border(0);                              // Set the border colour
+    cls(0);                                     // Clear the screen
 
 	// And kick everything off
 	//
-    cvideo_pio_handler();                       // Call the handlers as a one-off to initialise both DMAs
     cvideo_dma_handler();       
 
     return 0;
 }
 
 // Set the border colour
+// - colour: Border colour
 //
 void set_border(unsigned char colour) {
-    if(colour < 0x10 || colour > 0x1f) {
+    if(colour > colour_max) {
         return;
     }
-    for(int i = 3; i <32; i++) {
-        if(hsync[i] >= 0x10) {
-            hsync[i] = colour;
+    unsigned short c = BORD | (colour_base + colour);
+    
+    for(int i = 3; i <32; i++) {                // Skip the first three hsync values
+        if(hsync[i] & BORD) {                   // If the border bit is set in the hsync
+            hsync[i] = c;                       // Then write out the new colour (with the BORD bit set)
         }
-        border[i] = colour;
+        border[i] = c;                          // We can just write the values out to the border table
     }
 }
 
 // Wait for vblank
 //
 void wait_vblank(void) {
-    uint c = vblank_count;
-    while(c == vblank_count) {
-        sleep_us(64);
+    uint c = vblank_count;                      // Get the current vblank count
+    while(c == vblank_count) {                  // Wait until it changes
+        sleep_us(4);                            // Need to sleep for a minimum of 4us
     }
 }
 
@@ -191,7 +197,10 @@ void wait_vblank(void) {
 // instruction at the end of the PIO
 //
 void cvideo_pio_handler(void) {
-    dma_channel_set_read_addr(dma_channel_1, bitmap[bline++], true);	// Line up the next block of pixels
+    if(bline >= height) {
+        bline = 0;
+    }
+    dma_channel_set_read_addr(dma_channel_1, bitmap[bline++], true);    // Line up the next block of pixels
     hw_set_bits(&pio0->irq, 1u);										// Reset the IRQ
 }
 
@@ -238,7 +247,6 @@ void cvideo_dma_handler(void) {
     //
     if(vline++ >= 312) {    // If we've gone past the bottom scanline then
         vline = 1;		    // Reset the scanline counter
-        bline = 0;		    // And the pixel buffer row index counter
         vblank_count++;
     }
 
@@ -252,19 +260,20 @@ void cvideo_dma_handler(void) {
 // - pio: The PIO to attach this to
 // - sm: The state machine number
 // - dma_channel: The DMA channel
+// - transfer_size: Size of each DMA bus transfer (DMA_SIZE_8, DMA_SIZE_16 or DMA_SIZE_32)
 // - buffer_size_words: Number of bytes to transfer
 // - handler: Address of the interrupt handler, or NULL for no interrupts
 //
-void cvideo_configure_pio_dma(PIO pio, uint sm, uint dma_channel, size_t buffer_size_words, irq_handler_t handler) {
+void cvideo_configure_pio_dma(PIO pio, uint sm, uint dma_channel, uint transfer_size, size_t buffer_size, irq_handler_t handler) {
     pio_sm_clear_fifos(pio, sm);
     dma_channel_config c = dma_channel_get_default_config(dma_channel);
-    channel_config_set_transfer_data_size(&c, DMA_SIZE_8);
+    channel_config_set_transfer_data_size(&c, transfer_size);
     channel_config_set_read_increment(&c, true);
     channel_config_set_dreq(&c, pio_get_dreq(pio, sm, true));
     dma_channel_configure(dma_channel, &c,
         &pio->txf[sm],              // Destination pointer
         NULL,                       // Source pointer
-        buffer_size_words,          // Number of transfers
+        buffer_size,                // Size of buffer
         true                        // Start flag (true = start immediately)
     );
     if(handler != NULL) {
