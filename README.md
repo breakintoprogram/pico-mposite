@@ -19,7 +19,8 @@ In addition, I've done some housekeeping on the code, refactoring it to make it 
 
 The graphics primitives include:
 
-- Plot, Line and Circle
+- Plot and Line
+- Circle, Triangle and Polygon (Wireframe and Filled)
 - Print
 - Clear Screen, Vsync and Border
 
