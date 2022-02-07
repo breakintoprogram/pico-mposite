@@ -3,11 +3,12 @@
 ; Description:		Generate a burst of pixels to inject into the PAL(ish) video sync scaffold
 ; Author:	        Dean Belfield
 ; Created:	        31/01/2021
-; Last Updated:	    04/02/2022
+; Last Updated:	    07/02/2022
 ;
 ; Modinfo:
 ; 01/02/2022:		Tweaked comments
 ; 04/02/2022:       Border colour reset improved
+; 07/02/2022:       Added wrap back in
 
 .program cvideo_data
 
@@ -23,7 +24,7 @@
     mov pins, Y				; Reset the border colour
     irq set 0				; Trigger the PIO interrupt to set up the DMA for the next scanline
 
-;.wrap						; Loop back to wrap_target
+.wrap						; Loop back to wrap_target
 
 % c-sdk {
 //
