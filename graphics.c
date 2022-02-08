@@ -3,12 +3,13 @@
 // Description:		A hacked-together composite video output for the Raspberry Pi Pico
 // Author:	        Dean Belfield
 // Created:	        01/02/2021
-// Last Updated:	07/02/2022
+// Last Updated:	08/02/2022
 //
 // Modinfo:
 // 03/02/2022:      Fixed bug in print_char, typos in comments
 // 05/02/2022:      Added support for colour
 // 07/02/2022:      Added filled primitives
+// 08/07/2022:      Optimised filled circle drawing
 
 #include <math.h>
 
@@ -150,10 +151,8 @@ void draw_circle(int x, int y, int r, unsigned char c, bool filled) {
     int xp = 0;
     int yp = r;
     int d = 3 - r * 2;
-    while (yp >= xp) {              // The circle routine only plots an octant
+    while (yp >= xp) {                  // The circle routine only plots an octant
         if(filled) {
-            draw_horizontal_line(y + yp, x - xp, x + xp, c);
-            draw_horizontal_line(y - yp, x - xp, x + xp, c);
             draw_horizontal_line(y + xp, x - yp, x + yp, c);
             draw_horizontal_line(y - xp, x - yp, x + yp, c);
         }
@@ -169,6 +168,10 @@ void draw_circle(int x, int y, int r, unsigned char c, bool filled) {
         }
         xp++;
         if (d > 0) {
+            if(filled) {                // We only need to draw these bits when the Y coordinate changes
+              draw_horizontal_line(y + yp, x - xp, x + xp, c);
+              draw_horizontal_line(y - yp, x - xp, x + xp, c);
+            }
             yp--;
             d += 4 * (xp - yp) + 10;
         }
