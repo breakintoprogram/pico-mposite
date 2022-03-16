@@ -3,12 +3,13 @@
 ; Description:		Generate a burst of pixels to inject into the PAL(ish) video sync scaffold
 ; Author:	        Dean Belfield
 ; Created:	        31/01/2021
-; Last Updated:	    07/02/2022
+; Last Updated:	    24/02/2022
 ;
 ; Modinfo:
 ; 01/02/2022:		Tweaked comments
 ; 04/02/2022:       Border colour reset improved
 ; 07/02/2022:       Added wrap back in
+; 24/02/2022:       Removed sm_config_set_set_pins and sm_config_set_in_pins
 
 .program cvideo_data
 
@@ -43,10 +44,8 @@ void cvideo_data_initialise_pio(PIO pio, uint sm, uint offset, uint pin_base, ui
     }
     pio_sm_set_consecutive_pindirs(pio, sm, pin_base, pin_count, true);
     pio_sm_config c = cvideo_data_program_get_default_config(offset);
-    sm_config_set_set_pins(&c, pin_base, pin_count);
     sm_config_set_out_pins(&c, pin_base, pin_count);
     sm_config_set_out_shift(&c, false, true, 8);
-    sm_config_set_in_pins(&c, pin_base);
     pio_sm_init(pio, sm, offset, &c);
     pio->sm[sm].clkdiv = (uint32_t) (freq * (1 << 16));
 }
