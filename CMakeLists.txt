@@ -3,10 +3,11 @@
 # Description:		Makefile 
 # Author:	        Dean Belfield
 # Created:	        31/01/2021
-# Last Updated:	    01/02/2022
+# Last Updated:	        19/02/2022
 #
 # Modinfo:
 # 01/02/2022:		Added this header comment, fixed typo in executable filename, added extra target sources
+# 19/02/2022:           Added terminal.c
 
 #
 # See the official documentation https://www.raspberrypi.com/documentation/microcontrollers/c_sdk.html
@@ -25,6 +26,7 @@ target_sources(
         graphics.c
         charset.c
         bitmap.c
+        terminal.c
 )
 
 target_link_libraries(
