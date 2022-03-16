@@ -3,12 +3,13 @@
 ; Description:		Generate a PAL(ish) video signal scaffold
 ; Author:	        Dean Belfield
 ; Created:	        26/01/2021
-; Last Updated:	    05/02/2022
+; Last Updated:	    24/02/2022
 ;
 ; Modinfo:
 ; 15/02/2021:       Refactored to use wrap
 ; 31/01/2022:		Modified to use 32 byte sync tables
 ; 05/02/2022:       Modified to use 16 bit values in sync tables, tweaked timings
+; 24/02/2022:       Removed sm_config_set_set_pins
 
 .program cvideo_sync
 
@@ -47,7 +48,6 @@ void cvideo_sync_initialise_pio(PIO pio, uint sm, uint offset, uint pin_base, ui
     }
     pio_sm_set_consecutive_pindirs(pio, sm, pin_base, pin_count, true);
     pio_sm_config c = cvideo_sync_program_get_default_config(offset);
-    sm_config_set_set_pins(&c, pin_base, pin_count);
     sm_config_set_out_pins(&c, pin_base, pin_count);
     sm_config_set_out_shift(&c, false, true, 8);
     pio_sm_init(pio, sm, offset, &c);
