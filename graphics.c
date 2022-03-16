@@ -3,13 +3,15 @@
 // Description:		A hacked-together composite video output for the Raspberry Pi Pico
 // Author:	        Dean Belfield
 // Created:	        01/02/2021
-// Last Updated:	08/02/2022
+// Last Updated:	02/03/2022
 //
 // Modinfo:
 // 03/02/2022:      Fixed bug in print_char, typos in comments
 // 05/02/2022:      Added support for colour
 // 07/02/2022:      Added filled primitives
 // 08/07/2022:      Optimised filled circle drawing
+// 20/02/2022:      Added scroll_up, bitmap now initialised in cvideo.c
+// 02/03/2022:      Added blit
 
 #include <math.h>
 
@@ -24,13 +26,20 @@
 
 #include "graphics.h"
 
-unsigned char bitmap[height][width];
-
 // Clear the screen
-// - c Colour
+// - c: Background colour to fill screen with
 //
 void cls(unsigned char c) {
     memset(bitmap, colour_base + c, height * width);
+}
+
+// Scroll the screen up
+// - c: Background colour to fill blank area with
+// - rows: Number of pixel rows to scroll up by
+//
+void scroll_up(unsigned char c, int rows) {
+    memcpy(bitmap, &bitmap[width * rows], (height - rows) * width);
+    memset(&bitmap[width * (height - rows)], colour_base + c, rows * width);
 }
 
 // Print a character
@@ -42,14 +51,17 @@ void cls(unsigned char c) {
 //
 void print_char(int x, int y, int c, unsigned char bc, unsigned char fc) {
     int char_index;
+    unsigned char * ptr;
 
     if(c >= 32 && c < 128) {
         char_index = (c - 32) * 8;
+        ptr = &bitmap[width * y + x + 7];
         for(int row = 0; row < 8; row++) {
             unsigned char data = charset[char_index + row];
             for(int bit = 0; bit < 8; bit ++) {
-                bitmap[y + row][x + 7 - bit] = data & 1 << bit ? colour_base + fc : colour_base + bc;
+                *(ptr- bit) = data & 1 << bit ? colour_base + fc : colour_base + bc;
             }
+            ptr += width;
         }
     }
 }
@@ -74,7 +86,7 @@ void print_string(int x, int y, char *s, unsigned char bc, unsigned char fc) {
 //
 void plot(int x, int y, unsigned char c) {
     if(x >= 0 && x < width && y >= 0 && y < height) {
-        bitmap[y][x] = colour_base + c;
+        bitmap[width * y + x] = colour_base + c;
     }
 }
 
@@ -288,7 +300,7 @@ void draw_horizontal_line(int y1, int x1, int x2, int c) {
 //  for(int i = x1; i <= x2; i++) {     // This is slow...
 //      plot(i, y1, c);                 // so we'll use memset to fill the line in memory
 //  }                                  
-    memset(&bitmap[y1][x1], colour_base + c, x2 - x1 + 1);
+    memset(&bitmap[width * y1 + x1], colour_base + c, x2 - x1 + 1);
 }
 
 // Swap two numbers
@@ -356,5 +368,21 @@ void step_line(struct Line *line) {
         else {
             line->e += line->dy;
         }
+    }
+}
+
+// Blit (non-scaling)
+// - data: Source data
+// - sx, sy: Source X and Y in array of pixels
+// - sw, sh: Source width and height
+// - dx, dy: Destination X and Y on screen
+//
+void blit(const void * data, int sx, int sy, int sw, int sh, int dx, int dy) {
+    void * src = (void *)data + (sw * sy) + sx;
+    void * dst = bitmap + (width * dy) + dx;
+    for(int i = 0; i < sh; i++) {
+        memcpy(dst, src, sw);
+        dst += width;
+        src += sw;
     }
 }

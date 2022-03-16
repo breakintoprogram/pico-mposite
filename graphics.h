@@ -2,26 +2,26 @@
 // Title:	        Pico-mposite Graphics Primitives
 // Author:	        Dean Belfield
 // Created:	        01/02/2022
-// Last Updated:	07/02/2022
+// Last Updated:	02/03/2022
 //
 // Modinfo:
 // 07/02/2022:      Added support for filled primitives
+// 20/02/2022:      Added scroll_up, bitmap now initialised in cvideo.c
+// 02/03/2022:      Added blit
 
 #pragma once
 
 #include <stdbool.h>
 
-#define width 256               // Bitmap width in pixels
-#define height 192              // Bitmap height in pixels
+#define rgb(r,g,b) (((b&6)<<5)|(g<<3)|r)
 
 struct Line {
     int  dx, dy, sx, sy, e, xp, yp, h;
     bool quad;
 };
 
-unsigned char bitmap[height][width];
-
 void cls(unsigned char c);
+void scroll_up(unsigned char c, int rows);
 
 void print_char(int x, int y, int c, unsigned char bc, unsigned char fc);
 void print_string(int x, int y, char *s, unsigned char bc, unsigned char fc);
@@ -36,3 +36,5 @@ void draw_triangle(int x1, int y1, int x2, int y2, int x3, int y3, unsigned char
 void swap(int *a, int *b);
 void init_line(struct Line *line, int x1, int y1, int x2, int y2);
 void step_line(struct Line *line);
+
+void blit(const void * data, int sx, int sy, int sw, int sh, int dx, int dy);
