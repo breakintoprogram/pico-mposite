@@ -3,11 +3,13 @@
 // Description:		A hacked-together composite video output for the Raspberry Pi Pico
 // Author:	        Dean Belfield
 // Created:	        02/02/2021
-// Last Updated:	05/02/2022
+// Last Updated:	01/03/2022
 // 
 // Modinfo:
 // 04/02/2022:      Demos now set the border colour
 // 05/02/2022:      Added support for colour
+// 20/02/2022:      Added demo_terminal
+// 01/03/2022:      Added colour to the demos
 
 #include <stdlib.h>
 #include <math.h>
@@ -22,10 +24,9 @@
 #include "bitmap.h"
 #include "graphics.h"
 #include "cvideo.h"
+#include "terminal.h"
 
 #include "main.h"
-
-#define version "1.1"
 
 // Cube corner points
 //
@@ -40,16 +41,54 @@ int shape_pts[8][8] = {
     {  20, -20, -20 },
 };
 
-// Cube polygons (lines between corners)
+// Cube polygons (lines between corners + colour)
 //
-int shape[6][4] = {
-    { 0,1,3,2 },
-    { 6,7,5,4 },
-    { 1,5,7,3 },
-    { 2,6,4,0 },
-    { 2,3,7,6 },
-    { 0,4,5,1 },
+#if opt_colour == 0
+
+int shape[6][5] = {
+    { 0,1,3,2, 1 },
+    { 6,7,5,4, 2 },
+    { 1,5,7,3, 3 },
+    { 2,6,4,0, 4 },
+    { 2,3,7,6, 5 },
+    { 0,4,5,1, 6 },
 };
+
+unsigned char col_mandelbrot[16] = {
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
+};
+
+#else
+
+int shape[6][5] = {
+    { 0,1,3,2, col_red },
+    { 6,7,5,4, col_green },
+    { 1,5,7,3, col_blue },
+    { 2,6,4,0, col_magenta },
+    { 2,3,7,6, col_cyan },
+    { 0,4,5,1, col_yellow },
+};
+
+unsigned char col_mandelbrot[16] = { 
+    rgb(0,0,0),
+    rgb(1,0,0),
+    rgb(2,0,0),
+    rgb(3,0,0),
+    rgb(4,0,0),
+    rgb(5,0,0),
+    rgb(6,0,0),
+    rgb(7,0,0),
+    rgb(7,0,0),
+    rgb(7,1,0),
+    rgb(7,2,0),
+    rgb(7,3,0),
+    rgb(7,4,0),
+    rgb(7,5,0),
+    rgb(7,6,0),
+    rgb(7,7,0)
+};
+
+#endif
 
 // The main loop
 //
@@ -58,24 +97,31 @@ int main() {
     //
     // And then just loop doing your thing
     //
-    set_border(7);
-    cls(15);
     while(true) {
         demo_splash();
+        #if opt_terminal == 1
+        demo_terminal();
+        #else 
         demo_spinny_cube();
         demo_mandlebrot(); 
+        #endif
     }
 }
 
 void demo_splash() {
-    set_border(0);
-
-    memcpy(bitmap, sample_bitmap, height * width);
-
-    print_string(60, 8, "Pico-mposite v"version, 0, 15);
-    print_string(64, 24, "By Dean Belfield", 0, 15);
-    print_string(24, 180, "www.breakintoprogram.co.uk", 0, 15);
-
+    cls(0);
+    blit(&sample_bitmap, 0, 0, 256, 192, (width - 256) / 2, 0);
+    #if opt_colour == 0
+    set_border(col_black);
+    print_string(60, 8, "Pico-mposite v"version, col_black, col_white);
+    print_string(64, 24, "By Dean Belfield", col_black, col_white);
+    print_string(24, 180, "www.breakintoprogram.co.uk", col_black, col_white);
+    #else
+    set_border(col_blue);
+    print_string(60, 8, "Pico-mposite v"version, col_blue, col_white);
+    print_string(64, 24, "By Dean Belfield", col_green, col_white);
+    print_string(24, 180, "www.breakintoprogram.co.uk", col_red, col_white);    
+    #endif 
     sleep_ms(10000);
 }
 
@@ -86,14 +132,18 @@ void demo_spinny_cube() {
     double psi = 0;
     double phi = 0;
 
-    set_border(15);
+    set_border(col_white);
 
     for(int i = 0; i < 1000; i++) {
         wait_vblank();
-        cls(15);
-        draw_circle(128, 96, 80, i >= 500 ? 12 : 0, i >= 500);
-        render_spinny_cube(0, 0, the, psi, phi, 0, i >= 500);
+        cls(col_white);
+        #if opt_colour == 0
         print_string(0, 180, "Pico-mposite Graphics Primitives", 15, 0);
+        #else
+        print_string(0, 180, "Pico-mposite Graphics Primitives", col_blue, col_white);
+        #endif 
+        draw_circle(128, 96, 80, i >= 500 ? col_grey : col_black, i >= 500);
+        render_spinny_cube(0, 0, the, psi, phi, i >= 500);
         the += 0.01;
         psi += 0.03;
         phi -= 0.02;
@@ -103,10 +153,14 @@ void demo_spinny_cube() {
 // Demo: Mandlebrot set
 //
 void demo_mandlebrot() {
-    cls(0);
-    set_border(0);
+    cls(col_black);
+    set_border(col_black);
     render_mandlebrot();
+    #if opt_colour == 0
     print_string(16, 180, "Pico-mposite Mandlebrot Demo", 0, 15);
+    #else
+    print_string(16, 180, "Pico-mposite Mandlebrot Demo", col_red, col_white);
+    #endif
     sleep_ms(10000);
 }
 
@@ -116,7 +170,7 @@ void demo_mandlebrot() {
 // the, psi, phi: Rotation angles
 // colour: Pixel colour
 //
-void render_spinny_cube(int xo, int yo, double the, double psi, double phi, int colour, int filled) {
+void render_spinny_cube(int xo, int yo, double the, double psi, double phi, bool filled) {
     int i;
     double x, y, z, xx, yy, zz;
     int a[8], b[8];
@@ -154,7 +208,7 @@ void render_spinny_cube(int xo, int yo, double the, double psi, double phi, int 
         y4 = b[shape[i][3]];
 
         if(x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2) <= 0) {
-            draw_polygon(x1, y1, x2, y2, x3, y3, x4, y4, colour + i, filled);
+            draw_polygon(x1, y1, x2, y2, x3, y3, x4, y4, shape[i][4], filled);
         }
     }
 }
@@ -163,11 +217,22 @@ void render_spinny_cube(int xo, int yo, double the, double psi, double phi, int 
 //
 void render_mandlebrot(void) {
     int k = 0;
-    float i , j , r , x , y = -96;
-    while(y++<95) {
-        for(x = 0; x < 256; x++) {
-            plot(x, y + 96, k&0x0f);
-            for(i = k = r = 0; j = r * r - i * i - 2 + x / 100, i = 2 * r * i + y / 70, j * j + i * i < 11 && k++ < 111; r = j);
+    float i , j , r , x , y;
+    for(y = 0; y < height; y++) {
+        for(x = 0; x < width; x++) {
+            plot(x, y, col_mandelbrot[k]);
+            for(i = k = r = 0; j = r * r - i * i - 2 + x / 100, i = 2 * r * i + (y - 96) / 70, j * j + i * i < 11 && k++ < 15; r = j);
         }
     }
+}
+
+// Simple terminal output from UART
+//
+void demo_terminal(void) {
+    initialise_terminal();  // Initialise the UART
+    set_mode(2);
+    set_border(col_terminal_border);
+    cls(col_terminal_bg);
+    terminal();             // And do the terminal
+    set_mode(0);
 }
