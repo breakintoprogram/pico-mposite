@@ -46,6 +46,8 @@
 	
 #endif
 
+const uint BUTTON_PIN = 12;
+
 int main(void);
 
 void colour_bars(void);

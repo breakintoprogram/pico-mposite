@@ -19,7 +19,8 @@
 
 #include "hardware/pio.h"
 #include "hardware/dma.h"
-#include "hardware/irq.h"   
+#include "hardware/irq.h"  
+#include "hardware/gpio.h" 
 
 #include "bitmap.h"
 #include "graphics.h"
@@ -95,11 +96,21 @@ int shape[6][5] = {
 //
 int main() {
     initialise_cvideo();    // Initialise the composite video stuff
+	gpio_init(BUTTON_PIN);
+	gpio_pull_up(BUTTON_PIN);
+	gpio_set_dir(BUTTON_PIN, GPIO_IN);
 
+
+    int i =0;
+	int but = 1;
     colour_bars();
 
 	while(true)
-		sleep_ms(10000);
+		sleep_ms(10);
+		but = gpio_get(BUTTON_PIN);
+		if (but ==0) {
+				test_circle();
+		}
 }
 
 void colour_bars() {
