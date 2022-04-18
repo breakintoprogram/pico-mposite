@@ -29,18 +29,21 @@
 #if opt_colour == 0
     #define colour_base 0x10    // Start colour; for monochrome version this relates to black level voltage
     #define colour_max  0x0f    // Last available colour
-    // #define HSLO        0x0001
-    // #define HSHI        0x000d
-    // #define VSLO        HSLO
-    // #define VSHI        HSHI
-	#define HSLO        0x4201
-    #define HSHI        0x400d
-    #define VSLO        0x4101
-    #define VSHI        0x400d
-    #define BORD        0x8000
+    #define HSLO        0x0001
+    #define HSHI        0x000d
+    #define VSLO        HSLO
+    #define VSHI        HSHI
     #define gpio_base   0
- //   #define gpio_count  5
-    #define gpio_count  10
+    #define gpio_count  5
+ 
+ // For debugging you may use these values to output hsync and vsync on the same pins as the colour mode 
+ // as well as the normal monochrome composite sync/video
+ 	// #define HSLO        0x4201
+    // #define HSHI        0x400d
+    // #define VSLO        0x4101
+    // #define VSHI        0x400d
+    // #define BORD        0x8000
+    // #define gpio_count  10
 #elif opt_colour == 1
     #define colour_base 0x00
     #define colour_max  0xFF
