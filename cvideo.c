@@ -47,7 +47,7 @@ uint vblank_count;              // Vblank counter
 unsigned char * bitmap;         // Bitmap buffer
 
 int width = 256;                // Bitmap dimensions             
-int height = 192;
+int height = 256;
 
 /*
  * The sync tables consist of 32 entries, each one corresponding to a 2us slice of the 64us
@@ -122,7 +122,7 @@ int initialise_cvideo(void) {
 		gpio_count,								// Number of pins
 		piofreq_0								// State machine clock frequency
 	);	
-    cvideo_configure_pio_dma(					// Configure the DMA
+    cvideo_configure_pio_dma(					// Configure the DMA for Sync
         pio_0,									// The PIO to attach this DMA to
         sm_sync,								// The state machine number
         dma_channel_0,							// The DMA channel
@@ -145,7 +145,7 @@ int initialise_cvideo(void) {
 		piofreq_1_256
 	);
 
-    // Initialise the DMA
+    // Initialise the DMA for data (ie pixels)
     //
     cvideo_configure_pio_dma(
         pio_0,	
@@ -262,7 +262,6 @@ void cvideo_dma_handler(void) {
     switch(vline) {
 		
         // First deal with the vertical sync scanlines
-        // Also on scanline 3, preload the first pixel buffer scanline
         //
         case 1 ... 2:
             dma_channel_set_read_addr(dma_channel_0, vsync_ll, true);
@@ -277,8 +276,8 @@ void cvideo_dma_handler(void) {
 
         // Then the border scanlines
         //
-        case 6 ... 68:
-        case 261 ... 309:
+        case 6 ... 36:
+        case 293 ... 309:
             dma_channel_set_read_addr(dma_channel_0, border, true);
             break;
 

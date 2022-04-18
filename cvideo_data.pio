@@ -21,7 +21,7 @@
  loop:
     out X, 8				; Get 8 bits from DMA via Output Shift Register (OSR) to X
     mov pins, X				; Move X to pins as set up in cvideo_initialise_pio
-    jmp !OSRE loop  		; Loop unti no more pixel data
+    jmp !OSRE loop  		; Loop until no more pixel data
     mov pins, Y				; Reset the border colour
     irq set 0				; Trigger the PIO interrupt to set up the DMA for the next scanline
 

@@ -9,5 +9,5 @@
 #pragma once
 
 #define version         "1.2"
-#define opt_colour      0       // Set to 0 for monochrome board, 1 for colour board
+#define opt_colour      0       // Set to 0 for monochrome board, 1 for colour board, 2 for 1 bit RGB
 #define opt_terminal    0       // Set to 1 to just run the terminal software after boot screen

@@ -16,7 +16,7 @@
     #define col_black   0x00
     #define col_grey    0x0C
     #define col_white   0x0F
-#else
+#elif opt_colour == 1
     #define col_black   rgb(0,0,0)
     #define col_grey    rgb(6,6,6)
     #define col_white   rgb(7,7,7)
@@ -26,6 +26,16 @@
     #define col_yellow  rgb(7,7,0)
     #define col_magenta rgb(7,0,7)
     #define col_cyan    rgb(0,7,7)
+#else
+	#define col_black   0x0
+    #define col_white   0x7
+    #define col_red     0x1
+    #define col_green   0x2
+    #define col_blue    0x4
+    #define col_yellow  0x3
+    #define col_magenta 0x5
+    #define col_cyan    0x6
+	
 #endif
 
 int main(void);
