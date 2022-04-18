@@ -17,8 +17,10 @@
 #include "config.h"
 
 #define piofreq_0 5.25f         // Clock frequence of state machine for PIO handling sync
+#define piofreq_1_192 9.34f
 #define piofreq_1_256 7.00f     // Clock frequency of state machine for PIO handling pixel data at various resolutions
 #define piofreq_1_320 5.60f
+#define piofreq_1_342 5.222f
 #define piofreq_1_640 2.80f
 
 #define sm_sync 0               // State machine number in the PIO for the sync data

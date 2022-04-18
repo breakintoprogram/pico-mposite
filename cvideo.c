@@ -46,7 +46,7 @@ uint vblank_count;              // Vblank counter
 
 unsigned char * bitmap;         // Bitmap buffer
 
-int width = 256;                // Bitmap dimensions             
+int width = 320;                // Bitmap dimensions             
 int height = 256;
 
 /*
@@ -142,7 +142,7 @@ int initialise_cvideo(void) {
 		offset_1,
 		gpio_base,
 		gpio_count,
-		piofreq_1_256
+		piofreq_1_320
 	);
 
     // Initialise the DMA for data (ie pixels)

@@ -111,7 +111,7 @@ int main() {
 void demo_splash() {
     set_border(col_black);
 	cls(7);
-	const int w = 256;
+	const int w = 320;
 	const int h = 256;
 	draw_line(0,0,w-1,0,col_white);
 	draw_line(w-1,0,w-1,h-1,col_white);
