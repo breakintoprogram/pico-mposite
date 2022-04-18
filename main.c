@@ -28,6 +28,7 @@
 
 #include "main.h"
 
+	
 // Cube corner points
 //
 int shape_pts[8][8] = {
@@ -94,33 +95,33 @@ int shape[6][5] = {
 //
 int main() {
     initialise_cvideo();    // Initialise the composite video stuff
-    //
-    // And then just loop doing your thing
-    //
-    while(true) {
-        demo_splash();
-        #if opt_terminal == 1
-        demo_terminal();
-        #else 
-        demo_spinny_cube();
-        // demo_mandlebrot(); 
-        #endif
-    }
+
+    colour_bars();
+
+	while(true)
+		sleep_ms(10000);
 }
 
-void demo_splash() {
+void colour_bars() {
+	const int rectw = width/8;
+	const unsigned char c[8] = {col_white, col_yellow, col_cyan, col_green, col_magenta, col_red, col_blue, col_black};
+	set_border(col_black);
+	cls(col_black);
+	for (int i =0; i<8 ; i++) {
+		draw_rect(i*rectw,0,i*rectw+rectw-1,height,c[i],1);
+	}
+}
+void test_circle() {
     set_border(col_black);
 	cls(7);
-	const int w = 320;
-	const int h = 256;
-	draw_line(0,0,w-1,0,col_white);
-	draw_line(w-1,0,w-1,h-1,col_white);
-	draw_line(w-1,h-1,0,h-1,col_white);
-	draw_line(0,h-1,0,0,col_white);
-	draw_circle(w/2,h/2,h/2-10,0,0);
+
+	draw_line(0,0,width-1,0,col_white);
+	draw_line(width-1,0,width-1,height-1,col_white);
+	draw_line(width-1,height-1,0,height-1,col_white);
+	draw_line(0,height-1,0,0,col_white);
+	draw_circle(width/2,height/2,height/2-10,0,0);
 	
-	while(true)
-    sleep_ms(10000);
+
 }
 
 // Demo: Spinning 3D cube

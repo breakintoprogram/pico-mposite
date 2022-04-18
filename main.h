@@ -16,6 +16,14 @@
     #define col_black   0x00
     #define col_grey    0x0C
     #define col_white   0x0F
+	// Colours are defined by their monochrome brightness according to 
+	// Y = 0.21 R + 0.71 G + 0.072 B
+	#define col_red     3
+    #define col_green   11
+    #define col_blue    1
+    #define col_yellow  (col_red+col_green)
+    #define col_magenta (col_red+col_blue)
+    #define col_cyan    (col_blue+col_green)
 #elif opt_colour == 1
     #define col_black   rgb(0,0,0)
     #define col_grey    rgb(6,6,6)
@@ -40,7 +48,8 @@
 
 int main(void);
 
-void demo_splash(void);
+void colour_bars(void);
+void test_circle(void);
 void demo_spinny_cube(void);
 void demo_mandlebrot(void);
 void demo_terminal(void);

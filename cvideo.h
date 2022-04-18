@@ -33,6 +33,7 @@
     #define HSHI        0x000d
     #define VSLO        HSLO
     #define VSHI        HSHI
+	#define BORD        0x8000
     #define gpio_base   0
     #define gpio_count  5
  

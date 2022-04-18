@@ -212,6 +212,10 @@ void draw_polygon(int x1, int y1, int x2, int y2, int x3, int y3, int x4, int y4
     }
 }
 
+void draw_rect(int x1, int y1, int x2, int y2, unsigned char c, bool filled) {
+	draw_polygon(x1,y1,x2,y1,x2,y2,x1,y2,c,filled);
+}
+
 // Draw a  triangle
 // - x1 ... x3: X coordinates
 // - y1 ... y3: Y coordinates
