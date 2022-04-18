@@ -13,6 +13,25 @@
 # See the official documentation https://www.raspberrypi.com/documentation/microcontrollers/c_sdk.html
 # for guidance on setting up the Pico C/C++ SDK.
 #
+cmake_minimum_required(VERSION 3.13)
+
+if (NOT PICO_SDK_PATH)
+    message(FATAL_ERROR "PICO_SDK_PATH is not set")
+endif()
+
+# initialize the SDK based on PICO_SDK_PATH
+# note: this must happen before project()
+include(pico_sdk_import.cmake)
+
+project(pico-mposite)
+
+# initialize the Raspberry Pi Pico SDK
+pico_sdk_init()
+
+
+include(pico_sdk_import.cmake)
+
+enable_language( C CXX ASM )
 
 add_executable(pico-mposite)
 
@@ -42,7 +61,7 @@ pico_add_extra_outputs(pico-mposite)
 
 # add url via pico_set_program_url
 #
-example_auto_set_url(pico-mposite)
+# example_auto_set_url(pico-mposite)
 
 # generate .hex file and .pio.h file for the RP2040 datasheet (to make sure
 # the datasheet always shows the output of the latest pioasm version)

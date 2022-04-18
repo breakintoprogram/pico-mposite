@@ -1,0 +1,3 @@
+generated/**
+build/**
+!build/*.uf2
