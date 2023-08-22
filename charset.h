@@ -13,4 +13,4 @@
 
 #pragma once
 
-unsigned char const charset[768];
+extern unsigned char const charset[768];

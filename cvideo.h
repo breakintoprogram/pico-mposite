@@ -46,10 +46,10 @@
     #define gpio_count  10
 #endif
 
-unsigned char * bitmap;
+extern unsigned char * bitmap;
 
-int width;
-int height;
+extern int width;
+extern int height;
 
 int initialise_cvideo(void);
 int set_mode(int mode);
