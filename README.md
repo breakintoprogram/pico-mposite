@@ -34,6 +34,14 @@ In config.h there are a couple of compilation options:
 - opt_colour: Set to 0 to compile for the monochrome version, 1 to compile for the colour version (requires a different circuit)
 - opt_terminal: Set to 0 to just run rolling demos, 1 to enter terminal mode
 
+### Building
+To build, execute these commands inside the `build` folder.
+```shell
+cmake ..
+make
+```
+This should result in the file `pico-mposite.uf2`, which you can upload to your Pico.
+
 ### Why am I doing this?
 The code has evolved from a demo I built last year to demonstrate using the Pico PIO to output a composite video signal. I've decided the project has legs, and have decided to update it with the intention of making a colour version, and adding more support code for any developers that want to use this as a reference for their own projects.
 

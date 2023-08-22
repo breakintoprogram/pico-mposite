@@ -14,20 +14,17 @@
 # for guidance on setting up the Pico C/C++ SDK.
 #
 
-add_executable(pico-mposite)
+
+cmake_minimum_required(VERSION 3.13)
+include(pico_sdk_import.cmake)
+project(mposite_project C CXX ASM)
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
+pico_sdk_init()
+add_executable(pico-mposite main.c cvideo.c graphics.c charset.c bitmap.c terminal.c)
 
 pico_generate_pio_header(pico-mposite ${CMAKE_CURRENT_LIST_DIR}/cvideo_sync.pio)
 pico_generate_pio_header(pico-mposite ${CMAKE_CURRENT_LIST_DIR}/cvideo_data.pio)
-
-target_sources(
-        pico-mposite PRIVATE
-        main.c
-        cvideo.c
-        graphics.c
-        charset.c
-        bitmap.c
-        terminal.c
-)
 
 target_link_libraries(
         pico-mposite PRIVATE
@@ -36,50 +33,19 @@ target_link_libraries(
         hardware_pio
         hardware_dma
         hardware_irq
+        pico_bootrom
 )
 
 pico_add_extra_outputs(pico-mposite)
 
-# add url via pico_set_program_url
-#
-example_auto_set_url(pico-mposite)
-
-# generate .hex file and .pio.h file for the RP2040 datasheet (to make sure
-# the datasheet always shows the output of the latest pioasm version)
-#
-add_custom_target(
-        pio_cvideo_sync_datasheet DEPENDS
-	Pioasm
-	${CMAKE_CURRENT_LIST_DIR}/generated/cvideo_sync.hex
-	${CMAKE_CURRENT_LIST_DIR}/generated/cvideo_sync.pio.h
-)
-add_custom_command(
-        OUTPUT ${CMAKE_CURRENT_LIST_DIR}/generated/cvideo_sync.hex
-        DEPENDS ${CMAKE_CURRENT_LIST_DIR}/cvideo_sync.pio
-        COMMAND Pioasm -o hex ${CMAKE_CURRENT_LIST_DIR}/cvideo_sync.pio ${CMAKE_CURRENT_LIST_DIR}/generated/cvideo_sync.hex
-)
 add_custom_command(
         OUTPUT ${CMAKE_CURRENT_LIST_DIR}/generated/cvideo_sync.pio.h
         DEPENDS ${CMAKE_CURRENT_LIST_DIR}/cvideo_sync.pio
         COMMAND Pioasm ${CMAKE_CURRENT_LIST_DIR}/cvideo_sync.pio ${CMAKE_CURRENT_LIST_DIR}/generated/cvideo_sync.pio.h
 )
 
-add_custom_target(
-        pio_cvideo_data_datasheet DEPENDS
-	Pioasm
-	${CMAKE_CURRENT_LIST_DIR}/generated/cvideo_data.hex
-	${CMAKE_CURRENT_LIST_DIR}/generated/cvideo_data.pio.h
-)
-add_custom_command(
-        OUTPUT ${CMAKE_CURRENT_LIST_DIR}/generated/cvideo_data.hex
-        DEPENDS ${CMAKE_CURRENT_LIST_DIR}/cvideo_data.pio
-        COMMAND Pioasm -o hex ${CMAKE_CURRENT_LIST_DIR}/cvideo_data.pio ${CMAKE_CURRENT_LIST_DIR}/generated/cvideo_data.hex
-)
 add_custom_command(
         OUTPUT ${CMAKE_CURRENT_LIST_DIR}/generated/cvideo_data.pio.h
         DEPENDS ${CMAKE_CURRENT_LIST_DIR}/cvideo_data.pio
         COMMAND Pioasm ${CMAKE_CURRENT_LIST_DIR}/cvideo_data.pio ${CMAKE_CURRENT_LIST_DIR}/generated/cvideo_data.pio.h
 )
-
-
-add_dependencies(pico-mposite pio_cvideo_sync_datasheet pio_cvideo_data_datasheet)
