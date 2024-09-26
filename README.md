@@ -1,23 +1,48 @@
 # pico-mposite
-A hacked together demo for the Raspberry Pi Pico to output a composite video signal from the GPIO
 
-### The pico-mposite breadboard
-![Breadboard](https://github.com/breakintoprogram/pico-mposite/blob/main/images/breadboard.jpeg)
-There are two variants of the breadboard, a simple one that uses a resistor ladder to translate a 5-bit binary number on the Pico GPIO to a voltage between 0v and 1v, that generates an image with 16 shades of grey, and a more complicated one that uses 3 resistor ladders and an AD724 PAL/NTSC encoder chip to generate a 256 colour bitmap with 1 byte per pixel (332 RGB). Both schematics are included in the fritzing folder.
+### Summary
+Hardware and firmware for the Raspberry Pi Pico to add a composite video output using GPIO.
+
+![Splash Screen](/images/demo_splash_colour.jpeg)
+
+### Why am I doing this?
+The code has evolved from a demo I built when the Pico was first released. I wanted a simple project that combined the use of DMA and the Pico PIO cores. Getting the Pico to output a composite video signal was a good candidate for that.
+
+I decided the project had legs so updated the original mono version to add colour. This required a rewrite of my original demo and new hardware, yet both versions can still be built from this code. And both versions support a simple serial graphics terminal for homebrew 8-bit systems like my BSX and the RC2014. The capabilities of that may be expanded in future.
+
+And I've also created PCB layouts for both versions. Files are available for the mono version, with the colour version to follow once I've tested it.
+
+### Versions
+There are two versions of the hardware and firmware
+
+#### Mono
+- 16 shades of grey
+
+Uses a single resistor ladder to convert a 5-bit binary number on the Pico GPIO to a voltage between 0v and 1v. This is used to directly drive the composite video signal.
+
+#### Colour
+- 256 colours (322 RGB)
+
+Uses three resistor ladders and an AD724 PAL/NTSC encoder chip.
 
 Both monochrome and colour versions of the circut support resolutions of 256x192, 320x192 and 640x192.
 
 For more details, see [my blog post detailing the build](http://www.breakintoprogram.co.uk/projects/pico/composite-video-on-the-raspberry-pi-pico).
 
-### The code
-The original demo used a single state machine to output the video sync pulses and pixel data. This required the sync pulses to be defined
-at the same frequency as the pixels.
+### Hardware
 
-I've updated the code to use two PIO state machines. The first state machine creates a blank PAL(ish) video signal using a handful of 32-byte hard-coded lookup tables fetched via DMA, each pulse being 2us wide. At the point where pixel data needs to be injected into that scaffold, a second state machine kicks in and writes that data out to the GPIO pins at a higher frequency, whilst the first state machine executes NOPs.
+#### Build on a breadboard
+The breadboard files can be found in the folder [/hardware/breadboard/](/hardware/breadboard/)
 
-This is an improvement on the original code. It allows for the video resolution to be tweaked independantly of the sync pulses, and is required for the colour version.
+#### Build on a PCB
+PCB files will be added soon
 
-In addition, I've done some housekeeping on the code, refactoring it to make it more usable. I've also includes a handful of extras to get folk started on projects based upon this; some graphics primitives, and a handful of rolling demos.
+### Firmware
+The code to use two PIO state machines. The first state machine creates a blank PAL(ish) video signal using a handful of 32-byte hard-coded lookup tables fetched via DMA, each pulse being 2us wide. At the point where pixel data needs to be injected into that signal a second state machine kicks in and writes that data out to the GPIO pins at a higher frequency, whilst the first state machine executes NOPs.
+
+This allows for the horizontal video resolution to be tweaked independantly of the sync pulses, and is required for the colour version.
+
+The firmware includes a handful of extras to get folk started on projects based upon this; some graphics primitives, and a handful of rolling demos.
 
 The graphics primitives include:
 
@@ -27,12 +52,16 @@ The graphics primitives include:
 - Clear Screen, Vsync and Border
 - Scroll and Blit
 
-There is also a terminal mode. This requires a serial connection to the UART on pins 12 and 13 of the Pico. Remember the Pico is not 5V tolerant; the sample circuits uses a resistor divider circuit to drop a 5V TTL serial connection to 3.3V.
+There is also a terminal mode. This requires a serial connection to the UART on pins 12 and 13 of the Pico. Remember the Pico is not 5V tolerant; the sample circuits uses a resistor divider circuit to drop a 5V TTL serial connection to 3.3V. This is very much work-in-progress.
 
 ### Configuring for compilation
 In config.h there are a couple of compilation options:
-- opt_colour: Set to 0 to compile for the monochrome version, 1 to compile for the colour version (requires a different circuit)
-- opt_terminal: Set to 0 to just run rolling demos, 1 to enter terminal mode
+- opt_colour:
+  - Set to 0 to build firmware for the mono version
+  - Set to 1 to build firmware for the colour version
+- opt_terminal
+  - Set to 0 to just run rolling demos
+  - Set to 1 to build the serial terminal
 
 ### Building
 Make sure that you have set an environment variable to the Pico SDK, substituting the path with the location of the SDK files on your computer.
@@ -46,10 +75,3 @@ cmake ..
 make
 ```
 This should create the file `pico-mposite.uf2` that you can upload to your Pico.
-
-### Why am I doing this?
-The code has evolved from a demo I built last year to demonstrate using the Pico PIO to output a composite video signal. I've decided the project has legs, and have decided to update it with the intention of making a colour version, and adding more support code for any developers that want to use this as a reference for their own projects.
-
-I'm also investigating the possibility of using it as a serial graphics terminal for homebrew 8-bit systems like my BSX and the RC2014.
-
-![Splash Screen](./images/demo_splash_colour.jpeg)
