@@ -2,7 +2,7 @@
 // Title:	        Pico-mposite Video Output
 // Author:	        Dean Belfield
 // Created:	        26/01/2021
-// Last Updated:	01/03/2022
+// Last Updated:	26/09/2024
 //
 // Modinfo:
 // 31/01/2022:      Tweaks to reflect code changes
@@ -11,6 +11,7 @@
 // 05/02/2022:      Added support for colour composite board
 // 20/02/2022:      Bitmap is now dynamically allocated
 // 01/03/2022:      Tweaked sync parameters for colour version
+// 26/09/2024:		Externed variables
 
 #pragma once
 
