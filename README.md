@@ -35,16 +35,21 @@ In config.h there are a couple of compilation options:
 - opt_terminal: Set to 0 to just run rolling demos, 1 to enter terminal mode
 
 ### Building
+Make sure that you have set an environment variable to the Pico SDK, substituting the path with the location of the SDK files on your computer.
+```shell
+export PICO_SDK_PATH=/home/dev/pico/pico-sdk-2.0.0
+```
+
 To build, execute these commands inside the `build` folder.
 ```shell
 cmake ..
 make
 ```
-This should result in the file `pico-mposite.uf2`, which you can upload to your Pico.
+This should create the file `pico-mposite.uf2` that you can upload to your Pico.
 
 ### Why am I doing this?
 The code has evolved from a demo I built last year to demonstrate using the Pico PIO to output a composite video signal. I've decided the project has legs, and have decided to update it with the intention of making a colour version, and adding more support code for any developers that want to use this as a reference for their own projects.
 
 I'm also investigating the possibility of using it as a serial graphics terminal for homebrew 8-bit systems like my BSX and the RC2014.
 
-![Splash Screen](https://github.com/breakintoprogram/pico-mposite/blob/main/images/demo_splash_colour.jpeg)
+![Splash Screen](./images/demo_splash_colour.jpeg)
