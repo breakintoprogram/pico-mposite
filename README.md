@@ -35,7 +35,7 @@ For more details, see [my blog post detailing the build](http://www.breakintopro
 The breadboard files can be found in the folder [/hardware/breadboard/](/hardware/breadboard/)
 
 #### Build on a PCB
-PCB files will be added soon
+The PCB gerber files, schematics and BOM can be found in the folder [/hardware/pcb/](/hardware/pcb/)
 
 ### Firmware
 The code to use two PIO state machines. The first state machine creates a blank PAL(ish) video signal using a handful of 32-byte hard-coded lookup tables fetched via DMA, each pulse being 2us wide. At the point where pixel data needs to be injected into that signal a second state machine kicks in and writes that data out to the GPIO pins at a higher frequency, whilst the first state machine executes NOPs.
