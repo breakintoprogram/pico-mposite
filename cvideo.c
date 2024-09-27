@@ -3,7 +3,7 @@
 // Description:		The composite video stuff
 // Author:	        Dean Belfield
 // Created:	        26/01/2021
-// Last Updated:	25/02/2022
+// Last Updated:	27/09/2024
 //
 // Modinfo:
 // 15/02/2021:      Border buffers now have horizontal sync pulse set correctly
@@ -17,6 +17,7 @@
 // 05/02/2022:      Added support for colour, fixed bug in video generation
 // 20/02/2022:      Bitmap is now dynamically allocated; added two higher resolution video modes
 // 25/02/2022:      Lengthened HSYNC to 12us
+// 27/09/2024:		PIO state machines now started simultaneously
 
 #include <stdlib.h>
 
@@ -130,7 +131,6 @@ int initialise_cvideo(void) {
         32,										// Number of bytes to transfer
         cvideo_dma_handler						// The DMA handler
     );
-    pio_sm_set_enabled(pio_0, sm_sync, true);	// Enable the PIO state machine
 
     bitmap = malloc(width * height);            // Allocate the bitmap memory
 
@@ -155,7 +155,6 @@ int initialise_cvideo(void) {
         width,									// The bitmap width
         NULL									// But there is no DMA interrupt for the pixel data
     ); 
-    pio_sm_set_enabled(pio_0, sm_data, true);	// Enable the PIO state machine
 
     irq_set_exclusive_handler(					// Set up the PIO IRQ handler
 		PIO0_IRQ_0,								// The IRQ #
@@ -167,6 +166,9 @@ int initialise_cvideo(void) {
     set_border(0);                              // Set the border colour
     cls(0);                                     // Clear the screen      
 
+	// Start the PIO state machines
+	//
+	pio_enable_sm_mask_in_sync(pio_0, (1u << sm_data) | (1u << sm_sync));
     return 0;
 }
 
