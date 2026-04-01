@@ -279,9 +279,13 @@ void cvideo_dma_handler(void) {
 
         // Then the border scanlines
         //
-        case 6 ... 68:
+        case 6 ... 67:
         case 261 ... 309:
             dma_channel_set_read_addr(dma_channel_0, border, true);
+            break;
+        case 68:    // Last top-border line: re-anchor bline so bitmap[0] is at top
+            dma_channel_set_read_addr(dma_channel_0, border, true);
+            bline = 1;
             break;
 
         // Now point the dma at the first buffer for the pixel data,
